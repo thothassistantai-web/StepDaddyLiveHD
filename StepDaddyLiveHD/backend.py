@@ -56,7 +56,23 @@ async def update_channels():
             await step_daddy.load_channels()
             await asyncio.sleep(300)
         except asyncio.CancelledError:
-            continue
+            return
+        except Exception as e:
+            print(f"update_channels error: {e}")
+            await asyncio.sleep(60)
+
+@fastapi_app.on_event("startup")
+async def startup_event():
+    try:
+        await step_daddy.load_channels()
+    except Exception as e:
+        print(f"startup channel load failed: {e}")
+    asyncio.create_task(update_channels())
+
+
+@fastapi_app.on_event("shutdown")
+async def shutdown_event():
+    await client.aclose()
 
 
 def get_channels():
@@ -67,6 +83,17 @@ def get_channel(channel_id) -> Channel | None:
     if not channel_id or channel_id == "":
         return None
     return next((channel for channel in step_daddy.channels if channel.id == channel_id), None)
+
+
+@fastapi_app.get("/healthz")
+async def healthz():
+    port = os.environ.get("PORT", "3000")
+    return {
+        "ok": True,
+        "channels_loaded": len(step_daddy.channels),
+        "api_url": os.environ.get("API_URL") or f"http://127.0.0.1:{port}",
+        "proxy_content": os.environ.get("PROXY_CONTENT", "TRUE").upper() == "TRUE",
+    }
 
 
 @fastapi_app.get("/playlist.m3u8")
@@ -98,4 +125,3 @@ async def logo(logo: str):
         return JSONResponse(content={"error": "Request timed out"}, status_code=status.HTTP_504_GATEWAY_TIMEOUT)
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-

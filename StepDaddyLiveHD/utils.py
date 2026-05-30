@@ -13,7 +13,7 @@ def encrypt(input_string: str):
 
 
 def decrypt(input_string: str):
-    padding_needed = 4 - (len(input_string) % 4)
+    padding_needed = (-len(input_string)) % 4
     if padding_needed:
         input_string += '=' * padding_needed
     input_bytes = base64.urlsafe_b64decode(input_string)

@@ -3,3 +3,10 @@
 !.web/package.json
 .states
 .venv
+.env
+venv
+StepDaddyLiveHD/venv
+.git
+__pycache__/
+logs/
+logo-cache/
