@@ -1,56 +1,55 @@
-ARG PORT=3000
-ARG PROXY_CONTENT=TRUE
-ARG SOCKS5
+# StepDaddyLiveHD v2.0 — Modernized Dockerfile
+# Python 3.12 + Reflex 0.9.4
 
-# Only set for local/direct access. When TLS is used, the API_URL is assumed to be the same as the frontend.
-ARG API_URL
+FROM python:3.12-slim
 
-# It uses a reverse proxy to serve the frontend statically and proxy to backend
-# from a single exposed port, expecting TLS termination to be handled at the
-# edge by the given platform.
-FROM python:3.13 AS builder
+# Install system dependencies (including unzip for Bun, curl for healthcheck)
+RUN apt-get update -y && \
+    apt-get install -y --no-install-recommends \
+        curl \
+        ca-certificates \
+        unzip && \
+    rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /app/.web
-RUN python -m venv /app/.venv
+WORKDIR /app
+
+# Copy and install Python dependencies first (for better layer caching)
+COPY requirements.txt .
+RUN python -m venv /app/.venv && \
+    /app/.venv/bin/pip install --no-cache-dir -r requirements.txt
+
 ENV PATH="/app/.venv/bin:$PATH"
 
-WORKDIR /app
-
-# Install python app requirements and reflex in the container
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-# Install reflex helper utilities like bun/node
-COPY rxconfig.py ./
-RUN reflex init
-
-# Copy local context to `/app` inside container (see .dockerignore)
+# Copy application source
 COPY . .
 
-ARG PORT API_URL PROXY_CONTENT SOCKS5
-# Download other npm dependencies and compile frontend
-RUN REFLEX_API_URL=${API_URL:-http://localhost:$PORT} reflex export --loglevel debug --frontend-only --no-zip && mv .web/build/client/* /srv/ && rm -rf .web
+# Initialize Reflex and build frontend
+ARG API_URL=http://localhost:3000
+ENV REFLEX_API_URL=${API_URL}
+RUN reflex init && reflex export --frontend-only
 
+# Create logo cache directory
+RUN mkdir -p /app/logo-cache
 
-# Final image with only necessary files
-FROM python:3.13-slim
+# Environment variables
+ARG PORT=3000
+ARG PROXY_CONTENT=TRUE
+ARG SOCKS5=""
+ARG DLHD_BASE_URL=https://dlhd.pk
 
-# Install Caddy and redis server inside image
-RUN apt-get update -y && apt-get install -y caddy redis-server && rm -rf /var/lib/apt/lists/*
+ENV PORT=${PORT} \
+    API_URL=${API_URL} \
+    REFLEX_API_URL=${API_URL} \
+    PROXY_CONTENT=${PROXY_CONTENT} \
+    SOCKS5=${SOCKS5} \
+    DLHD_BASE_URL=${DLHD_BASE_URL} \
+    PYTHONUNBUFFERED=1
 
-ARG PORT API_URL
-ENV PATH="/app/.venv/bin:$PATH" PORT=$PORT REFLEX_API_URL=${API_URL:-http://localhost:$PORT} REDIS_URL=redis://localhost PYTHONUNBUFFERED=1 PROXY_CONTENT=${PROXY_CONTENT:-TRUE} SOCKS5=${SOCKS5:-""}
+EXPOSE ${PORT}
 
-WORKDIR /app
-COPY --from=builder /app /app
-COPY --from=builder /srv /srv
+# Health check
+HEALTHCHECK --interval=60s --timeout=10s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/health || exit 1
 
-# Needed until Reflex properly passes SIGTERM on backend.
-STOPSIGNAL SIGKILL
-
-EXPOSE $PORT
-
-# Starting the backend.
-CMD caddy start && \
-    redis-server --daemonize yes && \
-    exec reflex run --env prod --backend-only
+# Run Reflex (serves both frontend and backend)
+CMD exec reflex run --env prod --backend-port ${PORT} --single-port

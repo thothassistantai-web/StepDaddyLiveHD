@@ -1,3 +1,5 @@
+from typing import Optional
+
 import reflex as rx
 from rxconfig import config
 from StepDaddyLiveHD import backend
@@ -11,7 +13,7 @@ class WatchState(rx.State):
     is_loaded: bool = False
 
     @rx.var
-    def channel(self) -> Channel | None:
+    def channel(self) -> Optional[Channel]:
         self.is_loaded = False
         channel = backend.get_channel(str(self.channel_id))
         self.is_loaded = True

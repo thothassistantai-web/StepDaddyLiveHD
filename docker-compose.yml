@@ -4,17 +4,29 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        PORT: ${PORT}
-        API_URL: ${API_URL}
-        PROXY_CONTENT: ${PROXY_CONTENT}
-        SOCKS5: ${SOCKS5}
+        PORT: ${PORT:-3000}
+        API_URL: ${API_URL:-http://localhost:3000}
+        PROXY_CONTENT: ${PROXY_CONTENT:-TRUE}
+        SOCKS5: ${SOCKS5:-}
+        DLHD_BASE_URL: ${DLHD_BASE_URL:-https://dlhd.pk}
     environment:
-      - PORT=${PORT}
-      - API_URL=${API_URL}
-      - PROXY_CONTENT=${PROXY_CONTENT}
-      - SOCKS5=${SOCKS5}
+      - PORT=${PORT:-3000}
+      - API_URL=${API_URL:-http://localhost:3000}
+      - PROXY_CONTENT=${PROXY_CONTENT:-TRUE}
+      - SOCKS5=${SOCKS5:-}
+      - DLHD_BASE_URL=${DLHD_BASE_URL:-https://dlhd.pk}
     ports:
-      - "${PORT}:${PORT}"
+      - "${PORT:-3000}:${PORT:-3000}"
     restart: unless-stopped
     env_file:
       - .env
+    volumes:
+      - logo-cache:/app/logo-cache
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-3000}/health"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  logo-cache:

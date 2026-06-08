@@ -1,7 +1,5 @@
-from pyexpat.errors import XML_ERROR_INVALID_ARGUMENT
-
+"""Navigation bar component."""
 import reflex as rx
-from pygments.styles.dracula import background
 
 from rxconfig import config
 
@@ -65,7 +63,7 @@ def navbar(search=None) -> rx.Component:
                         navbar_icons_item("Github", "github", "https://github.com/gookie-dev/StepDaddyLiveHD", True),
                         spacing="6",
                     ),
-                    justify=rx.breakpoints(initial="between"),
+                    justify="between",
                     align_items="center",
                 ),
             ),
@@ -103,7 +101,7 @@ def navbar(search=None) -> rx.Component:
                             ),
                             justify="end",
                         ),
-                        justify=rx.breakpoints(initial="between"),
+                        justify="between",
                         align_items="center",
                         width="100%",
                     ),
